@@ -10,7 +10,7 @@
         body { background-color: #F8F9FA; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         .ios-card { background: white; border-radius: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 20px; }
         .section-title { font-size: 0.9rem; font-weight: 700; color: #1a1a1a; margin-left: 4px; margin-bottom: 8px; display: flex; align-items: center; }
-        .section-title i { margin-right: 8px; color: #EAB308; } 
+        .section-title i { margin-right: 8px; color: #EAB308; }
         
         .choice-input { position: absolute; opacity: 0; width: 0; height: 0; }
         .choice-label { 
@@ -29,6 +29,7 @@
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239ca3af'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='C19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
             background-repeat: no-repeat; background-position: right 1rem center; background-size: 1.25rem;
         }
+        .basket-item { border-left: 4px solid #EAB308; }
     </style>
 </head>
 <body class="p-4 max-w-md mx-auto pb-24">
@@ -132,6 +133,15 @@
         </div>
     </div>
 
+    <button onclick="addToBasket()" class="w-full py-4 border-2 border-yellow-500 text-yellow-600 rounded-2xl font-bold mb-4 active:bg-yellow-50 transition-all">
+        ADD TO LIST / 加入待點清單
+    </button>
+
+    <div class="section-title"><i class="fas fa-shopping-basket"></i> CURRENT BASKET / 已加入飲品</div>
+    <div id="basketArea" class="space-y-3 mb-6">
+        <p class="text-center text-gray-400 text-sm py-4 italic">尚未加入飲品</p>
+    </div>
+
     <button onclick="generateOrder()" class="w-full py-5 bg-yellow-500 text-white rounded-2xl font-black text-lg shadow-xl shadow-yellow-100 active:scale-[0.98] transition-all">
         GENERATE ORDER / 生成點單
     </button>
@@ -139,9 +149,9 @@
     <div id="resultModal" class="fixed inset-0 bg-black/60 hidden items-end sm:items-center justify-center z-50 p-4 backdrop-blur-sm">
         <div class="bg-white rounded-t-[35px] sm:rounded-[30px] w-full max-w-sm p-8 animate-slide-up shadow-2xl">
             <div class="w-16 h-1.5 bg-gray-200 rounded-full mx-auto mb-8"></div>
-            <h3 class="text-xl font-bold text-gray-900 mb-4">吳家點單 (Wu Jia)</h3>
-            <div id="resultText" class="bg-gray-50 p-6 rounded-2xl text-gray-800 font-semibold break-words mb-8 border border-gray-100 text-lg leading-relaxed shadow-inner"></div>
-            <button onclick="copyOrder()" class="w-full py-4 bg-gray-900 text-white rounded-2xl font-bold text-lg active:scale-95 transition-all mb-4">複製點單</button>
+            <h3 class="text-xl font-bold text-gray-900 mb-4 text-center">吳家批次點單</h3>
+            <div id="resultText" class="bg-gray-50 p-6 rounded-2xl text-gray-800 font-semibold break-words mb-8 border border-gray-100 text-base leading-relaxed shadow-inner max-h-60 overflow-y-auto"></div>
+            <button onclick="copyOrder()" class="w-full py-4 bg-gray-900 text-white rounded-2xl font-bold text-lg active:scale-95 transition-all mb-4">複製全部內容</button>
             <button onclick="closeModal()" class="w-full py-2 text-gray-400 font-medium text-sm">關閉視窗</button>
         </div>
     </div>
@@ -153,13 +163,15 @@
             sizes: ["L", "M"]
         };
 
+        let basket = [];
+
         function renderRadio(id, list, name) {
             const container = document.getElementById(id);
             list.forEach(item => {
                 container.innerHTML += `
                     <label class="relative flex-1 cursor-pointer">
                         <input type="radio" name="${name}" value="${item}" class="choice-input">
-                        <div class="choice-label font-bold text-xs">${item}</div>
+                        <div class="choice-label font-bold text-[10px] uppercase">${item.split(' ')[0]}</div>
                     </label>`;
             });
         }
@@ -178,7 +190,7 @@
             return text.replace('★', '').split(' / ')[0].trim();
         }
 
-        function generateOrder() {
+        function addToBasket() {
             const drinkRaw = document.getElementById('drinkSelect').value;
             const toppingRaw = document.getElementById('toppingSelect').value;
             const sugar = document.querySelector('input[name="sugar"]:checked')?.value;
@@ -186,19 +198,60 @@
             const size = document.querySelector('input[name="size"]:checked')?.value;
             const qty = document.getElementById('qtyInput').value;
 
-            if (!drinkRaw || !sugar || !ice || !size) { alert("請填寫完整選項！"); return; }
+            if (!drinkRaw || !sugar || !ice || !size) { alert("請完整選擇規格！"); return; }
 
-            let result = cleanText(drinkRaw);
-            if (toppingRaw) result += " + " + cleanText(toppingRaw);
-            result += ` + ${sugar} + ${ice} + ${size} *${qty}`;
+            // 存儲越南文指令與中文預覽
+            const vnLine = `${cleanText(drinkRaw)}${toppingRaw ? ' + ' + cleanText(toppingRaw) : ''} + ${sugar} + ${ice} + ${size} *${qty}`;
+            const zhPreview = `${drinkRaw.split(' / ')[1]} (${size}) x${qty}`;
 
-            document.getElementById('resultText').innerText = result;
+            basket.push({ vn: vnLine, zh: zhPreview });
+            updateBasketUI();
+            resetInputs();
+        }
+
+        function updateBasketUI() {
+            const area = document.getElementById('basketArea');
+            if (basket.length === 0) {
+                area.innerHTML = `<p class="text-center text-gray-400 text-sm py-4 italic">尚未加入飲品</p>`;
+                return;
+            }
+
+            area.innerHTML = basket.map((item, index) => `
+                <div class="ios-card basket-item p-3 flex justify-between items-center bg-white mb-2">
+                    <div class="flex-1">
+                        <div class="text-xs font-bold text-gray-800">${item.zh}</div>
+                        <div class="text-[10px] text-gray-400 truncate">${item.vn}</div>
+                    </div>
+                    <button onclick="removeFromBasket(${index})" class="ml-2 text-red-300 active:text-red-500">
+                        <i class="fas fa-times-circle"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function removeFromBasket(index) {
+            basket.splice(index, 1);
+            updateBasketUI();
+        }
+
+        function resetInputs() {
+            document.getElementById('drinkSelect').value = "";
+            document.getElementById('toppingSelect').value = "";
+            document.querySelectorAll('input[type="radio"]').forEach(el => el.checked = false);
+            document.getElementById('qtyInput').value = 1;
+        }
+
+        function generateOrder() {
+            if (basket.length === 0) { alert("清單中還沒有飲品！"); return; }
+            
+            const resultText = basket.map(item => item.vn).join('\n');
+            document.getElementById('resultText').innerText = resultText;
             document.getElementById('resultModal').classList.replace('hidden', 'flex');
         }
 
         function copyOrder() {
             navigator.clipboard.writeText(document.getElementById('resultText').innerText).then(() => {
-                alert("已複製點單內容！");
+                alert("已複製全部點單內容！");
                 closeModal();
             });
         }
