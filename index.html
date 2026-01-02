@@ -29,7 +29,9 @@
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239ca3af'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='C19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
             background-repeat: no-repeat; background-position: right 1rem center; background-size: 1.25rem;
         }
-        .basket-item { border-left: 4px solid #EAB308; }
+        /* 優化刪除按鈕不被擠出的樣式 */
+        .basket-item { border-left: 4px solid #EAB308; display: flex; align-items: center; justify-content: space-between; }
+        .basket-content { min-width: 0; flex: 1; padding-right: 8px; }
     </style>
 </head>
 <body class="p-4 max-w-md mx-auto pb-24">
@@ -200,7 +202,6 @@
 
             if (!drinkRaw || !sugar || !ice || !size) { alert("請完整選擇規格！"); return; }
 
-            // 存儲越南文指令與中文預覽
             const vnLine = `${cleanText(drinkRaw)}${toppingRaw ? ' + ' + cleanText(toppingRaw) : ''} + ${sugar} + ${ice} + ${size} *${qty}`;
             const zhPreview = `${drinkRaw.split(' / ')[1]} (${size}) x${qty}`;
 
@@ -216,14 +217,15 @@
                 return;
             }
 
+            // 更新：改進 HTML 結構，確保按鈕不會被擠走
             area.innerHTML = basket.map((item, index) => `
-                <div class="ios-card basket-item p-3 flex justify-between items-center bg-white mb-2">
-                    <div class="flex-1">
-                        <div class="text-xs font-bold text-gray-800">${item.zh}</div>
+                <div class="ios-card basket-item p-3 mb-2">
+                    <div class="basket-content">
+                        <div class="text-xs font-bold text-gray-800 break-words">${item.zh}</div>
                         <div class="text-[10px] text-gray-400 truncate">${item.vn}</div>
                     </div>
-                    <button onclick="removeFromBasket(${index})" class="ml-2 text-red-300 active:text-red-500">
-                        <i class="fas fa-times-circle"></i>
+                    <button onclick="removeFromBasket(${index})" class="w-8 h-8 flex-shrink-0 flex items-center justify-center text-red-300 active:text-red-500">
+                        <i class="fas fa-times-circle text-lg"></i>
                     </button>
                 </div>
             `).join('');
@@ -243,7 +245,6 @@
 
         function generateOrder() {
             if (basket.length === 0) { alert("清單中還沒有飲品！"); return; }
-            
             const resultText = basket.map(item => item.vn).join('\n');
             document.getElementById('resultText').innerText = resultText;
             document.getElementById('resultModal').classList.replace('hidden', 'flex');
